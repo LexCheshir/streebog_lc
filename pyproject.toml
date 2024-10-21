@@ -13,3 +13,7 @@ python = "^3.10"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[project.urls]
+GitHub = "https://github.com/LexCheshir/streebog_lc/tree/main"
