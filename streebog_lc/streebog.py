@@ -3,19 +3,23 @@ from pathlib import Path
 
 so_path = Path(__file__).parent / "streebog_go" / "streebog_go.so"
 streebog_go = ctypes.cdll.LoadLibrary(so_path)
-hello_world = streebog_go.helloWorld
 
 
-def streebog_256(data) -> str:
-    return ""
+class Streebog256:
+    def __init__(self, data: bytes = b"") -> None:
+        pass
 
+    def update(self) -> None:
+        pass
 
-def streebog_512(data) -> str:
-    return ""
+    def digest(self) -> str:
+        return ""
 
 
 def main():
-    hello_world()
+    sb = Streebog256()
+    res = sb.digest()
+    print(res)
 
 
 if __name__ == "__main__":
