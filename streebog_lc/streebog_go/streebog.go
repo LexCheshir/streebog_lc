@@ -252,21 +252,6 @@ type Streebog struct {
 	block      [64]byte
 }
 
-func dprint(name string, data [64]byte) {
-	fmt.Printf("\n=== === === %v === === ===\n", name)
-	for i, el := range data {
-		form := fmt.Sprintf("%x ", el)
-		if len(form) == 2 {
-			form = "0" + form
-		}
-		fmt.Print(form)
-
-		if (i+1)%8 == 0 {
-			fmt.Print("\n")
-		}
-	}
-}
-
 func (sb *Streebog) updateChunk(b []byte, size *[]byte) {
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
 		b[i], b[j] = b[j], b[i]
@@ -276,18 +261,13 @@ func (sb *Streebog) updateChunk(b []byte, size *[]byte) {
 	defer sb.mu.Unlock()
 
 	sb.block = [64]byte(b)
-	sb.block_size[62] = (*size)[0]
-	sb.block_size[63] = (*size)[1]
-	// dprint("Block 1", sb.block)
+	sb.block_size[62] = (*size)[1]
+	sb.block_size[63] = (*size)[0]
 
 	transformG(&sb.n, &sb.hash, &sb.block)
-	// dprint("Block 2", sb.block)
-	dprint("Hash 2", sb.hash)
 
 	add_512(&sb.n, &sb.block_size, &sb.n)
 	add_512(&sb.sigma, &sb.block, &sb.sigma)
-	// dprint("N 3", sb.n)
-	// dprint("Sigma 3", sb.sigma)
 
 	sb.wg.Done()
 }
@@ -304,8 +284,6 @@ func (sb *Streebog) update(src []byte) {
 
 	bl := buf.Len()
 	binary.LittleEndian.PutUint16(size, uint16(bl)*8)
-	fmt.Printf("\nbl: %v", bl)
-	fmt.Printf("\nsize: %v\n", size)
 	if bl > 0 {
 		pad := make([]byte, chunk_size-bl)
 		data := append(buf.Next(buf.Len()), pad...)
@@ -320,12 +298,8 @@ func (sb *Streebog) digest() []byte {
 
 	var z [64]byte
 	transformG(&z, &sb.hash, &sb.n)
-	dprint("Hash 4", sb.hash)
-	// dprint("N 4", sb.n)
 
 	transformG(&z, &sb.hash, &sb.sigma)
-	dprint("Hash 5", sb.hash)
-	// dprint("Sigma 5", sb.sigma)
 
 	for i, j := 0, len(sb.hash)-1; i < j; i, j = i+1, j-1 {
 		sb.hash[i], sb.hash[j] = sb.hash[j], sb.hash[i]
@@ -357,10 +331,10 @@ func init_streebog(use256 bool) *Streebog {
 }
 
 func main() {
-	sb := init_streebog(false)
+	sb := init_streebog(true)
 
 	input := []byte("hello world")
 	sb.update(input)
 	res := sb.digest()
-	fmt.Printf("\n\nres: %x\n", res)
+	fmt.Printf("\nres: %x\n", res)
 }
