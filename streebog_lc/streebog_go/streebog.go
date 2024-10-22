@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"sync"
+	"time"
 )
 
 const maxUint8 = ^uint8(0)
@@ -331,10 +333,21 @@ func init_streebog(use256 bool) *Streebog {
 }
 
 func main() {
-	sb := init_streebog(true)
+	sb := init_streebog(false)
 
-	input := []byte("hello world")
+	// input := []byte("hello world hello world")
+
+	input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
+	if err != nil {
+		panic(err)
+	}
+
+	start := time.Now()
+
 	sb.update(input)
 	res := sb.digest()
 	fmt.Printf("\nres: %x\n", res)
+
+	elapsed := time.Since(start)
+	fmt.Printf("\ntime: %v\n", elapsed)
 }
