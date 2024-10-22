@@ -156,6 +156,7 @@ func transformX(a, b, res *[64]byte) {
 
 func transformS(res *[64]byte) {
 	for i, byteVal := range res {
+		// fmt.Printf("\nByte val: %v\n", byteVal)
 		(*res)[i] = PI[byteVal]
 	}
 }
@@ -186,8 +187,8 @@ func split_bytes_into(data *[8]uint64, res *[64]byte) {
 	for _, el := range data {
 		tmp := make([]byte, 8)
 		binary.LittleEndian.PutUint64(tmp, el)
-		for _, b := range tmp {
-			(*res)[i] = b
+		for j := range tmp {
+			(*res)[i] = tmp[7-j]
 			i++
 		}
 	}
@@ -244,7 +245,7 @@ type Streebog struct {
 	mu         sync.Mutex
 	wg         sync.WaitGroup
 	use256     bool
-	d          [64]byte
+	hash       [64]byte
 	n          [64]byte
 	sigma      [64]byte
 	block_size [64]byte
@@ -266,7 +267,7 @@ func dprint(name string, data [64]byte) {
 	}
 }
 
-func (sb *Streebog) updateChunk(b []byte) {
+func (sb *Streebog) updateChunk(b []byte, size *[]byte) {
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
 		b[i], b[j] = b[j], b[i]
 	}
@@ -275,67 +276,88 @@ func (sb *Streebog) updateChunk(b []byte) {
 	defer sb.mu.Unlock()
 
 	sb.block = [64]byte(b)
-	dprint("block 1", sb.block)
-	transformG(&sb.n, &sb.d, &sb.block)
-	dprint("block 2", sb.block)
-	dprint("hash 2", sb.d)
+	sb.block_size[62] = (*size)[0]
+	sb.block_size[63] = (*size)[1]
+	// dprint("Block 1", sb.block)
+
+	transformG(&sb.n, &sb.hash, &sb.block)
+	// dprint("Block 2", sb.block)
+	dprint("Hash 2", sb.hash)
+
 	add_512(&sb.n, &sb.block_size, &sb.n)
 	add_512(&sb.sigma, &sb.block, &sb.sigma)
+	// dprint("N 3", sb.n)
+	// dprint("Sigma 3", sb.sigma)
 
 	sb.wg.Done()
 }
 
 func (sb *Streebog) update(src []byte) {
 	buf := bytes.NewBuffer(src)
+	size := []byte{0x02, 0x00}
 
 	for buf.Len() >= chunk_size {
 		chunk := buf.Next(chunk_size)
 		sb.wg.Add(1)
-		go sb.updateChunk(chunk)
+		go sb.updateChunk(chunk, &size)
 	}
 
 	bl := buf.Len()
+	binary.LittleEndian.PutUint16(size, uint16(bl)*8)
+	fmt.Printf("\nbl: %v", bl)
+	fmt.Printf("\nsize: %v\n", size)
 	if bl > 0 {
 		pad := make([]byte, chunk_size-bl)
 		data := append(buf.Next(buf.Len()), pad...)
 		data[bl] = 1
 		sb.wg.Add(1)
-		go sb.updateChunk(data)
+		go sb.updateChunk(data, &size)
 	}
 }
 
 func (sb *Streebog) digest() []byte {
 	sb.wg.Wait()
+
 	var z [64]byte
-	transformG(&z, &sb.d, &sb.n)
-	transformG(&z, &sb.d, &sb.sigma)
-	for i, j := 0, len(sb.d)-1; i < j; i, j = i+1, j-1 {
-		sb.d[i], sb.d[j] = sb.d[j], sb.d[i]
+	transformG(&z, &sb.hash, &sb.n)
+	dprint("Hash 4", sb.hash)
+	// dprint("N 4", sb.n)
+
+	transformG(&z, &sb.hash, &sb.sigma)
+	dprint("Hash 5", sb.hash)
+	// dprint("Sigma 5", sb.sigma)
+
+	for i, j := 0, len(sb.hash)-1; i < j; i, j = i+1, j-1 {
+		sb.hash[i], sb.hash[j] = sb.hash[j], sb.hash[i]
 	}
 
 	if sb.use256 {
-		return sb.d[:32]
+		return sb.hash[:32]
 	}
-	return sb.d[:]
+	return sb.hash[:]
 }
 
 func init_streebog(use256 bool) *Streebog {
-	var digest [chunk_size]byte //512
 	if use256 {
-		for i := range digest {
-			digest[i] = 1
+		fmt.Println("Using 256")
+	} else {
+		fmt.Println("Using 512")
+	}
+	var hash, n, sigma, block_size, block [chunk_size]byte
+	if use256 {
+		for i := range hash {
+			hash[i] = 1
 		}
 	}
-	var n, sigma, block_size, block [chunk_size]byte
 	sb := Streebog{
 		sync.Mutex{}, sync.WaitGroup{}, use256,
-		digest, n, sigma, block_size, block,
+		hash, n, sigma, block_size, block,
 	}
 	return &sb
 }
 
 func main() {
-	sb := init_streebog(true)
+	sb := init_streebog(false)
 
 	input := []byte("hello world")
 	sb.update(input)
