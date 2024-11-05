@@ -8,6 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+gostcrypto = "^1.2.5"
 
 
 [build-system]

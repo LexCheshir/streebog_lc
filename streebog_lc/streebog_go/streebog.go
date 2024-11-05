@@ -197,20 +197,21 @@ func HashFile(path string, use256 bool) string {
 	if err != nil {
 		return ""
 	}
+	fmt.Println(input)
 	return HashBytes(input, use256)
 }
 
 //export HashFileWrapper
 func HashFileWrapper(pathPtr *C.char) *C.char {
 	path := C.GoString(pathPtr)
-	fmt.Println(path)
-	return C.CString(path)
+	res := HashFile(path, true)
+	return C.CString(res)
 }
 
 func main() {
-	sb := InitStreebog(false)
+	sb := InitStreebog(true)
 
-	input := []byte("hello world hello world")
+	input := []byte("hello world")
 
 	// input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
 	// if err != nil {
