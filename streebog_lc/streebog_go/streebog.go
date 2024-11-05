@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"runtime/pprof"
+	"sync"
 	"time"
 )
 
@@ -68,17 +70,27 @@ func SplitBytesInto(data *[8]uint64, res *[64]byte) {
 	}
 }
 
+func ProcessBuffer(ref, buffer *uint64) {
+	for i := 0; i < 64; i++ {
+		if (*ref>>i)&1 == 1 {
+			*buffer ^= A[63-i]
+		}
+	}
+}
+
 func TransformL(res *[64]byte) {
 	var buffers [8]uint64
+	var wg sync.WaitGroup
 	input64 := JoinBytes(res)
 
 	for i := 0; i < 8; i++ {
-		for j := 0; j < 64; j++ {
-			if (input64[i]>>j)&1 == 1 {
-				buffers[i] ^= A[63-j]
-			}
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ProcessBuffer(&input64[i], &buffers[i])
+		}()
 	}
+	wg.Wait()
 	SplitBytesInto(&buffers, res)
 }
 
@@ -208,14 +220,23 @@ func HashFileWrapper(pathPtr *C.char) *C.char {
 }
 
 func main() {
+	f, err := os.Create("myprogram.prof")
+	if err != nil {
+		fmt.Println(err)
+		return
+
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	sb := InitStreebog(false)
 
-	input := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n")
+	// input := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n")
 
-	// input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
-	// if err != nil {
-	// 	panic(err)
-	// }
+	input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
+	if err != nil {
+		panic(err)
+	}
 
 	start := time.Now()
 
