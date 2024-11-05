@@ -169,7 +169,7 @@ func (sb *Streebog) Digest() []byte {
 	}
 
 	if sb.use256 {
-		return sb.hash[:32]
+		return sb.hash[32:]
 	}
 	return sb.hash[:]
 }
