@@ -74,8 +74,7 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern char* digest256(void* ptr);
-extern void* create_streebog256();
+extern char* HashFileWrapper(char* pathPtr);
 
 #ifdef __cplusplus
 }

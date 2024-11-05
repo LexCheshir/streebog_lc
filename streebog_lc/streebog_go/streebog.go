@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -12,7 +13,7 @@ const maxUint8 = ^uint8(0)
 const maxUint64 = ^uint64(0)
 const chunk_size = 64
 
-func add_512(a, b, res *[64]byte) {
+func Add512(a, b, res *[64]byte) {
 	var tmp uint16
 	tmp = 0
 	for i := range res {
@@ -22,26 +23,26 @@ func add_512(a, b, res *[64]byte) {
 	}
 }
 
-func transformX(a, b, res *[64]byte) {
+func TransformX(a, b, res *[64]byte) {
 	for i := range res {
 		(*res)[i] = a[i] ^ b[i]
 	}
 }
 
-func transformS(res *[64]byte) {
+func TransformS(res *[64]byte) {
 	for i, byteVal := range res {
 		(*res)[i] = PI[byteVal]
 	}
 }
 
-func transformP(res *[64]byte) {
+func TransformP(res *[64]byte) {
 	temp := (*res)
 	for i, byteVal := range TAU {
 		(*res)[i] = temp[byteVal]
 	}
 }
 
-func join_bytes(data *[64]byte) (res [8]uint64) {
+func JoinBytes(data *[64]byte) (res [8]uint64) {
 	tmp := uint64(0)
 	for i, byteVal := range data {
 		tmp += uint64(byteVal)
@@ -55,7 +56,7 @@ func join_bytes(data *[64]byte) (res [8]uint64) {
 	return
 }
 
-func split_bytes_into(data *[8]uint64, res *[64]byte) {
+func SplitBytesInto(data *[8]uint64, res *[64]byte) {
 	i := 0
 	for _, el := range data {
 		tmp := make([]byte, 8)
@@ -67,9 +68,9 @@ func split_bytes_into(data *[8]uint64, res *[64]byte) {
 	}
 }
 
-func transformL(res *[64]byte) {
+func TransformL(res *[64]byte) {
 	var buffers [8]uint64
-	input64 := join_bytes(res)
+	input64 := JoinBytes(res)
 
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 64; j++ {
@@ -78,40 +79,40 @@ func transformL(res *[64]byte) {
 			}
 		}
 	}
-	split_bytes_into(&buffers, res)
+	SplitBytesInto(&buffers, res)
 }
 
-func keySchedule(keys *[64]byte, iter_index int) {
-	transformX(keys, &Cn[iter_index], keys)
-	transformS(keys)
-	transformP(keys)
-	transformL(keys)
+func KeySchedule(keys *[64]byte, iter_index int) {
+	TransformX(keys, &Cn[iter_index], keys)
+	TransformS(keys)
+	TransformP(keys)
+	TransformL(keys)
 }
 
-func transformE(keys, chunk, state *[64]byte) {
-	transformX(chunk, keys, state)
+func TransformE(keys, chunk, state *[64]byte) {
+	TransformX(chunk, keys, state)
 	for i := 0; i < 12; i++ {
-		transformS(state)
-		transformP(state)
-		transformL(state)
-		keySchedule(keys, i)
-		transformX(state, keys, state)
+		TransformS(state)
+		TransformP(state)
+		TransformL(state)
+		KeySchedule(keys, i)
+		TransformX(state, keys, state)
 	}
 }
 
-func transformG(n, hash, message *[64]byte) {
+func TransformG(n, hash, message *[64]byte) {
 	var keys, temp [64]byte
 
-	transformX(n, hash, &keys)
+	TransformX(n, hash, &keys)
 
-	transformS(&keys)
-	transformP(&keys)
-	transformL(&keys)
+	TransformS(&keys)
+	TransformP(&keys)
+	TransformL(&keys)
 
-	transformE(&keys, message, &temp)
+	TransformE(&keys, message, &temp)
 
-	transformX(&temp, hash, &temp)
-	transformX(&temp, message, hash)
+	TransformX(&temp, hash, &temp)
+	TransformX(&temp, message, hash)
 }
 
 type Streebog struct {
@@ -123,7 +124,7 @@ type Streebog struct {
 	block      [64]byte
 }
 
-func (sb *Streebog) updateChunk(b []byte, size *[]byte) {
+func (sb *Streebog) UpdateChunk(b []byte, size *[]byte) {
 	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
 		b[i], b[j] = b[j], b[i]
 	}
@@ -132,19 +133,19 @@ func (sb *Streebog) updateChunk(b []byte, size *[]byte) {
 	sb.block_size[62] = (*size)[1]
 	sb.block_size[63] = (*size)[0]
 
-	transformG(&sb.n, &sb.hash, &sb.block)
+	TransformG(&sb.n, &sb.hash, &sb.block)
 
-	add_512(&sb.n, &sb.block_size, &sb.n)
-	add_512(&sb.sigma, &sb.block, &sb.sigma)
+	Add512(&sb.n, &sb.block_size, &sb.n)
+	Add512(&sb.sigma, &sb.block, &sb.sigma)
 }
 
-func (sb *Streebog) update(src []byte) {
+func (sb *Streebog) Update(src []byte) {
 	buf := bytes.NewBuffer(src)
 	size := []byte{0x02, 0x00}
 
 	for buf.Len() >= chunk_size {
 		chunk := buf.Next(chunk_size)
-		sb.updateChunk(chunk, &size)
+		sb.UpdateChunk(chunk, &size)
 	}
 
 	bl := buf.Len()
@@ -153,15 +154,15 @@ func (sb *Streebog) update(src []byte) {
 		pad := make([]byte, chunk_size-bl)
 		data := append(buf.Next(buf.Len()), pad...)
 		data[bl] = 1
-		sb.updateChunk(data, &size)
+		sb.UpdateChunk(data, &size)
 	}
 }
 
-func (sb *Streebog) digest() []byte {
+func (sb *Streebog) Digest() []byte {
 	var z [64]byte
-	transformG(&z, &sb.hash, &sb.n)
+	TransformG(&z, &sb.hash, &sb.n)
 
-	transformG(&z, &sb.hash, &sb.sigma)
+	TransformG(&z, &sb.hash, &sb.sigma)
 
 	for i, j := 0, len(sb.hash)-1; i < j; i, j = i+1, j-1 {
 		sb.hash[i], sb.hash[j] = sb.hash[j], sb.hash[i]
@@ -173,27 +174,41 @@ func (sb *Streebog) digest() []byte {
 	return sb.hash[:]
 }
 
-func init_streebog(use256 bool) *Streebog {
-	if use256 {
-		fmt.Println("Using 256")
-	} else {
-		fmt.Println("Using 512")
-	}
-
+func InitStreebog(use256 bool) *Streebog {
 	var hash, n, sigma, block_size, block [chunk_size]byte
 	if use256 {
 		for i := range hash {
 			hash[i] = 1
 		}
 	}
-
 	sb := Streebog{use256, hash, n, sigma, block_size, block}
-
 	return &sb
 }
 
+func HashBytes(input []byte, use256 bool) string {
+	sb := InitStreebog(use256)
+	sb.Update(input)
+	res := sb.Digest()
+	return fmt.Sprintf("%x", res)
+}
+
+func HashFile(path string, use256 bool) string {
+	input, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return HashBytes(input, use256)
+}
+
+//export HashFileWrapper
+func HashFileWrapper(pathPtr *C.char) *C.char {
+	path := C.GoString(pathPtr)
+	fmt.Println(path)
+	return C.CString(path)
+}
+
 func main() {
-	sb := init_streebog(false)
+	sb := InitStreebog(false)
 
 	input := []byte("hello world hello world")
 
@@ -204,8 +219,8 @@ func main() {
 
 	start := time.Now()
 
-	sb.update(input)
-	res := sb.digest()
+	sb.Update(input)
+	res := sb.Digest()
 	fmt.Printf("\nres: %x\n", res)
 
 	elapsed := time.Since(start)
