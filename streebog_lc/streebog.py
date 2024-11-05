@@ -38,7 +38,6 @@ def lib_hash(path: Path) -> str:
     with path.open(mode="rb") as f:
         buffer = f.read(buffer_size)
         while len(buffer) > 0:
-            print(buffer)
             hash_obj.update(buffer)
             buffer = f.read(buffer_size)
     res = hash_obj.hexdigest()

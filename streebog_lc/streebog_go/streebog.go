@@ -197,7 +197,6 @@ func HashFile(path string, use256 bool) string {
 	if err != nil {
 		return ""
 	}
-	fmt.Println(input)
 	return HashBytes(input, use256)
 }
 
