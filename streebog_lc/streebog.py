@@ -33,8 +33,8 @@ def hash_file(path: Union[str, Path]) -> str:
 
 
 def lib_hash(path: Path) -> str:
-    hash_obj = gostcrypto.gosthash.new("streebog256")
-    buffer_size = 32
+    hash_obj = gostcrypto.gosthash.new("streebog512")
+    buffer_size = 64
     with path.open(mode="rb") as f:
         buffer = f.read(buffer_size)
         while len(buffer) > 0:
@@ -45,7 +45,8 @@ def lib_hash(path: Path) -> str:
 
 
 def main():
-    path = Path("/mnt/d/OS/test.txt")
+    path = Path("/mnt/d/OS/rufus-4.5.exe")
+
     print(f"processing {path}")
     print(f"size: {path.stat().st_size}")
     print()
