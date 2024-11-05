@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
-	"sync"
 	"time"
 )
 
@@ -70,27 +69,17 @@ func SplitBytesInto(data *[8]uint64, res *[64]byte) {
 	}
 }
 
-func ProcessBuffer(ref, buffer *uint64) {
-	for i := 0; i < 64; i++ {
-		if (*ref>>i)&1 == 1 {
-			*buffer ^= A[63-i]
-		}
-	}
-}
-
 func TransformL(res *[64]byte) {
 	var buffers [8]uint64
-	var wg sync.WaitGroup
 	input64 := JoinBytes(res)
 
 	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			ProcessBuffer(&input64[i], &buffers[i])
-		}()
+		for j := 0; j < 64; j++ {
+			if (input64[i]>>j)&1 == 1 {
+				buffers[i] ^= A[63-j]
+			}
+		}
 	}
-	wg.Wait()
 	SplitBytesInto(&buffers, res)
 }
 
