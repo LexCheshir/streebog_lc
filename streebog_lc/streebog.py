@@ -33,7 +33,7 @@ def hash_file(path: Union[str, Path]) -> str:
 
 
 def lib_hash(path: Path) -> str:
-    hash_obj = gostcrypto.gosthash.new("streebog512")
+    hash_obj = gostcrypto.gosthash.new("streebog256")
     buffer_size = 64
     with path.open(mode="rb") as f:
         buffer = f.read(buffer_size)
@@ -44,12 +44,9 @@ def lib_hash(path: Path) -> str:
     return res
 
 
-def main():
-    path = Path("/mnt/d/OS/rufus-4.5.exe")
-
-    print(f"processing {path}")
+def test_file(path: Path):
+    print(f"## {path}\n")
     print(f"size: {path.stat().st_size}")
-    print()
 
     start = datetime.datetime.now()
     my_res = hash_file(path)
@@ -64,8 +61,21 @@ def main():
 
     print(f"{my_res = }")
     print(f"{li_res = }")
-    print(f"{my_res == li_res}")
+    print(f"-{'[x]' if my_res == li_res else '[ ]'} same result")
+    print(f"perf improvement: x{li_end / my_end}")
+    print("\n")
+
+
+def main():
+    path_list = [
+        Path("/mnt/d/OS/rufus-4.5.exe"),
+        Path("/mnt/d/OS/rufus-4.5p.exe"),
+        Path("/mnt/d/workinprogress/polytech/batch/lex_diploma_bachelor_fin_v3.docx"),
+    ]
+
     print()
+    for path in path_list:
+        test_file(path)
 
 
 if __name__ == "__main__":

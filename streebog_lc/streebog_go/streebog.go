@@ -69,16 +69,32 @@ func SplitBytesInto(data *[8]uint64, res *[64]byte) {
 	}
 }
 
+func CalcBuffer(input64 uint64) uint64 {
+	var buffer uint64
+	for j := 0; j < 64; j++ {
+		if input64&(1<<j) != 0 {
+			buffer ^= A[63-j]
+		}
+	}
+	return buffer
+}
+
+func CalcBufferPrecomp(input64 uint64) uint64 {
+	var buffer uint64
+	for i := 0; i < 8; i++ {
+		shift := 8 * (7 - i)
+		byteVal := byte(input64 >> shift)
+		buffer ^= APrecomp[byteVal][7-i]
+	}
+	return buffer
+}
+
 func TransformL(res *[64]byte) {
 	var buffers [8]uint64
 	input64 := JoinBytes(res)
 
 	for i := 0; i < 8; i++ {
-		for j := 0; j < 64; j++ {
-			if (input64[i]>>j)&1 == 1 {
-				buffers[i] ^= A[63-j]
-			}
-		}
+		buffers[i] = CalcBufferPrecomp(input64[i])
 	}
 	SplitBytesInto(&buffers, res)
 }
@@ -204,8 +220,29 @@ func HashFile(path string, use256 bool) string {
 //export HashFileWrapper
 func HashFileWrapper(pathPtr *C.char) *C.char {
 	path := C.GoString(pathPtr)
-	res := HashFile(path, false)
+	res := HashFile(path, true)
 	return C.CString(res)
+}
+
+func GenPrecompA() {
+	fmt.Println("var APrecomp = [256][8]uint64 {")
+	for i := 0; i < 256; i++ {
+		var input uint64 = uint64(i)
+		fmt.Println("	{")
+		fmt.Print("		")
+		for j := 0; j < 8; j++ {
+			var precomp uint64 = 0
+			shiftedInput := input << (8 * j)
+			for k := 0; k < 64; k++ {
+				if shiftedInput&(1<<k) != 0 {
+					precomp ^= A[63-k]
+				}
+			}
+			fmt.Printf("0x%x, ", precomp)
+		}
+		fmt.Println("\n	},")
+	}
+	fmt.Println("}")
 }
 
 func main() {
@@ -218,11 +255,12 @@ func main() {
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
-	sb := InitStreebog(false)
+	sb := InitStreebog(true)
 
-	// input := []byte("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\n")
+	// input := []byte("Lorem ipsum dolor sit amet")
 
-	input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
+	// input, err := os.ReadFile("/mnt/d/OS/balenaEtcher-Portable-1.7.9.exe")
+	input, err := os.ReadFile("/mnt/d/OS/rufus-4.5.exe")
 	if err != nil {
 		panic(err)
 	}
