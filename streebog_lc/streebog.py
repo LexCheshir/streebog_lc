@@ -57,18 +57,6 @@ def hash512_bytes(data: bytes) -> str:
     return res
 
 
-def lib_hash(path: Path) -> str:
-    hash_obj = gostcrypto.gosthash.new("streebog256")
-    buffer_size = 64
-    with path.open(mode="rb") as f:
-        buffer = f.read(buffer_size)
-        while len(buffer) > 0:
-            hash_obj.update(buffer)
-            buffer = f.read(buffer_size)
-    res = hash_obj.hexdigest()
-    return res
-
-
 def main():
     print(hash256_bytes(b"hello world"))
 
