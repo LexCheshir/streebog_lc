@@ -3,30 +3,55 @@ import datetime
 from pathlib import Path
 from typing import Union
 
-import gostcrypto
-
 so_path = Path(__file__).parent / "streebog_go" / "streebog_go.so"
 streebog_go = ctypes.cdll.LoadLibrary(so_path)
 
-_c_hash_file = streebog_go.HashFileWrapper
-_c_hash_file.argtypes = [ctypes.c_char_p]
-_c_hash_file.restype = ctypes.c_void_p
+_c_hash256_file = streebog_go.Hash256FileWrapper
+_c_hash256_file.argtypes = [ctypes.c_char_p]
+_c_hash256_file.restype = ctypes.c_void_p
+
+_c_hash512_file = streebog_go.Hash256FileWrapper
+_c_hash512_file.argtypes = [ctypes.c_char_p]
+_c_hash512_file.restype = ctypes.c_void_p
+
+_c_hash256_bytes = streebog_go.Hash256BytesWrapper
+_c_hash256_bytes.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+_c_hash256_bytes.restype = ctypes.c_void_p
+
+_c_hash512_bytes = streebog_go.Hash512BytesWrapper
+_c_hash512_bytes.argtypes = [ctypes.POINTER(ctypes.c_ubyte), ctypes.c_int]
+_c_hash512_bytes.restype = ctypes.c_void_p
 
 
-class Streebog256:
-    def __init__(self, data: bytes = b"") -> None:
-        pass
-
-    def update(self) -> None:
-        pass
-
-    def digest(self) -> str:
-        return ""
-
-
-def hash_file(path: Union[str, Path]) -> str:
+def hash256_file(path: Union[str, Path]) -> str:
     path = Path(path).resolve()
-    c_res = _c_hash_file(str(path).encode("utf-8"))
+    c_res = _c_hash256_file(str(path).encode("utf-8"))
+    c_bytes = ctypes.string_at(c_res)
+    res = c_bytes.decode("utf-8")
+    return res
+
+
+def hash512_file(path: Union[str, Path]) -> str:
+    path = Path(path).resolve()
+    c_res = _c_hash512_file(str(path).encode("utf-8"))
+    c_bytes = ctypes.string_at(c_res)
+    res = c_bytes.decode("utf-8")
+    return res
+
+
+def hash256_bytes(data: bytes) -> str:
+    c_res = _c_hash256_bytes(
+        (ctypes.c_ubyte * len(data)).from_buffer_copy(data), len(data)
+    )
+    c_bytes = ctypes.string_at(c_res)
+    res = c_bytes.decode("utf-8")
+    return res
+
+
+def hash512_bytes(data: bytes) -> str:
+    c_res = _c_hash512_bytes(
+        (ctypes.c_ubyte * len(data)).from_buffer_copy(data), len(data)
+    )
     c_bytes = ctypes.string_at(c_res)
     res = c_bytes.decode("utf-8")
     return res
@@ -44,38 +69,8 @@ def lib_hash(path: Path) -> str:
     return res
 
 
-def test_file(path: Path):
-    print(f"## {path}\n")
-    print(f"size: {path.stat().st_size}")
-
-    start = datetime.datetime.now()
-    my_res = hash_file(path)
-    my_end = datetime.datetime.now() - start
-    print(f"{my_end = }")
-
-    start = datetime.datetime.now()
-    li_res = lib_hash(path)
-    li_end = datetime.datetime.now() - start
-    print(f"{li_end = }")
-    print()
-
-    print(f"{my_res = }")
-    print(f"{li_res = }")
-    print(f"-{'[x]' if my_res == li_res else '[ ]'} same result")
-    print(f"perf improvement: x{li_end / my_end}")
-    print("\n")
-
-
 def main():
-    path_list = [
-        Path("/mnt/d/OS/rufus-4.5.exe"),
-        Path("/mnt/d/OS/rufus-4.5p.exe"),
-        Path("/mnt/d/workinprogress/polytech/batch/lex_diploma_bachelor_fin_v3.docx"),
-    ]
-
-    print()
-    for path in path_list:
-        test_file(path)
+    print(hash256_bytes(b"hello world"))
 
 
 if __name__ == "__main__":

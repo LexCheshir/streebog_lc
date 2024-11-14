@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"time"
+	"unsafe"
 )
 
 const maxUint8 = ^uint8(0)
@@ -217,10 +218,31 @@ func HashFile(path string, use256 bool) string {
 	return HashBytes(input, use256)
 }
 
-//export HashFileWrapper
-func HashFileWrapper(pathPtr *C.char) *C.char {
+//export Hash256FileWrapper
+func Hash256FileWrapper(pathPtr *C.char) *C.char {
 	path := C.GoString(pathPtr)
 	res := HashFile(path, true)
+	return C.CString(res)
+}
+
+//export Hash512FileWrapper
+func Hash512FileWrapper(pathPtr *C.char, len C.int) *C.char {
+	path := C.GoString(pathPtr)
+	res := HashFile(path, false)
+	return C.CString(res)
+}
+
+//export Hash256BytesWrapper
+func Hash256BytesWrapper(data *C.uchar, len C.int) *C.char {
+	byteData := C.GoBytes(unsafe.Pointer(data), len)
+	res := HashBytes(byteData, true)
+	return C.CString(res)
+}
+
+//export Hash512BytesWrapper
+func Hash512BytesWrapper(data *C.uchar, len C.int) *C.char {
+	byteData := C.GoBytes(unsafe.Pointer(data), len)
+	res := HashBytes(byteData, false)
 	return C.CString(res)
 }
 

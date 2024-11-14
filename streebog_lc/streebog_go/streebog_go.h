@@ -74,7 +74,10 @@ typedef struct { void *data; GoInt len; GoInt cap; } GoSlice;
 extern "C" {
 #endif
 
-extern char* HashFileWrapper(char* pathPtr);
+extern char* Hash256FileWrapper(char* pathPtr);
+extern char* Hash512FileWrapper(char* pathPtr, int len);
+extern char* Hash256BytesWrapper(unsigned char* data, int len);
+extern char* Hash512BytesWrapper(unsigned char* data, int len);
 
 #ifdef __cplusplus
 }
